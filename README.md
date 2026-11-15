@@ -18,14 +18,14 @@ card, an app bar, or the entire app. Taps pass straight through the snow.
 - Custom colors, color palettes, and your own flake outline
 - Snow in front of or behind your content
 - Snow over any region: padding, alignment, and width and height factors
-- One `CustomPainter` and one ticker, with no per-frame rebuilds
+- Built for low-end devices: one ticker, no per-frame rebuilds, and every flake drawn from a cached sprite in a single draw call
 - No dependencies beyond Flutter
 
 ## Install
 
 ```yaml
 dependencies:
-  winter_theme: ^1.0.0
+  winter_theme: ^1.0.1
 ```
 
 ## Usage

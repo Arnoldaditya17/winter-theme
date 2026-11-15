@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
@@ -115,6 +116,10 @@ class Snowfall extends StatefulWidget {
   /// Define it for a flake of radius 1 centred on the origin (so it fits in
   /// the square from -1 to 1); it is scaled, rotated and stroked per flake.
   /// Use it for stars, hearts, leaves or any other falling shape.
+  ///
+  /// Create the path once and reuse it (for example in a `static final`)
+  /// rather than building a new one in every `build`, so the flake sprite
+  /// isn't regenerated on each rebuild.
   final Path? crystalPath;
 
   /// Whether the snow is drawn in front of or behind [child].
@@ -268,6 +273,9 @@ class _SnowfallState extends State<Snowfall>
                     minSize: widget.minSize,
                     maxSize: widget.maxSize,
                     opacity: widget.opacity,
+                    devicePixelRatio:
+                        MediaQuery.maybeDevicePixelRatioOf(context) ??
+                        View.of(context).devicePixelRatio,
                   ),
                   child: const SizedBox.expand(),
                 ),
@@ -340,6 +348,82 @@ class _SnowField extends ChangeNotifier {
 
   final math.Random _random;
   final List<_Flake> flakes = [];
+
+  // Per-flake draw data, kept between frames so painting allocates nothing.
+  Float32List _transforms = Float32List(0);
+  Float32List _rects = Float32List(0);
+  Int32List _tints = Int32List(0);
+
+  ui.Image? _sheet;
+  double _sheetCell = 0;
+  double _sheetStroke = 0;
+  Path? _sheetPath;
+
+  /// Share of a sprite cell's half-width that the crystal outline fills,
+  /// leaving room for its stroke.
+  static const double crystalInset = 0.85;
+
+  /// A sprite sheet with a soft round flake in the left cell and the crystal
+  /// outline in the right one, both white so they can be tinted per flake.
+  ///
+  /// Every flake is then a textured quad, and the whole snowfall is a single
+  /// draw call. The sheet is rebuilt only when its inputs change.
+  ui.Image sheet({
+    required double cell,
+    required Path path,
+    required double stroke,
+  }) {
+    final cached = _sheet;
+    if (cached != null &&
+        cell == _sheetCell &&
+        stroke == _sheetStroke &&
+        identical(path, _sheetPath)) {
+      return cached;
+    }
+    cached?.dispose();
+
+    const white = Color(0xFFFFFFFF);
+    final half = cell / 2;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.drawCircle(
+      Offset(half, half),
+      half,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          Offset(half, half),
+          half,
+          const [white, Color(0xD9FFFFFF), Color(0x00FFFFFF)],
+          const [0, 0.5, 1],
+        ),
+    );
+    canvas
+      ..translate(cell + half, half)
+      ..scale(half * crystalInset)
+      ..drawPath(
+        path,
+        Paint()
+          ..color = white
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..strokeWidth = stroke,
+      );
+    final picture = recorder.endRecording();
+    final image = picture.toImageSync((cell * 2).round(), cell.round());
+    picture.dispose();
+
+    _sheetCell = cell;
+    _sheetStroke = stroke;
+    _sheetPath = path;
+    return _sheet = image;
+  }
+
+  @override
+  void dispose() {
+    _sheet?.dispose();
+    super.dispose();
+  }
 
   /// Seconds of snowfall so far; drives the gust waves.
   double _time = 0;
@@ -445,6 +529,7 @@ class _SnowPainter extends CustomPainter {
     required this.minSize,
     required this.maxSize,
     required this.opacity,
+    required this.devicePixelRatio,
   }) : super(repaint: field);
 
   /// Below this radius a crystal's arms blur together, so draw a dot.
@@ -459,23 +544,49 @@ class _SnowPainter extends CustomPainter {
   final double minSize;
   final double maxSize;
   final double opacity;
+  final double devicePixelRatio;
 
   @override
   void paint(Canvas canvas, Size size) {
     field.size = size;
     if (size.isEmpty) return;
-    final smallDotPaint = Paint()
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.8);
-    final largeDotPaint = Paint()
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8);
-    final crystalPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final fade = math.min(fadeExtent, size.height / 2);
+    final flakes = field.flakes;
+    if (flakes.isEmpty) return;
 
-    for (final flake in field.flakes) {
+    // Size the sprites for the largest flake at this screen density, rounded
+    // up so that dragging a size slider doesn't rebuild the sheet every step.
+    final cell =
+        ((2 * maxSize * devicePixelRatio / _SnowField.crystalInset) / 8)
+            .ceilToDouble()
+            .clamp(2.0, 32.0) *
+        8;
+    final image = field.sheet(
+      cell: cell,
+      path: crystalPath,
+      stroke: (0.9 + maxSize * 0.06) / maxSize,
+    );
+    final half = cell / 2;
+    final crystalScale = 1 / (half * _SnowField.crystalInset);
+    final dotScale = 0.8 / half;
+
+    if (field._tints.length < flakes.length) {
+      field
+        .._transforms = Float32List(flakes.length * 4)
+        .._rects = Float32List(flakes.length * 4)
+        .._tints = Int32List(flakes.length);
+    }
+    final transforms = field._transforms;
+    final rects = field._rects;
+    final tints = field._tints;
+
+    final fade = math.min(fadeExtent, size.height / 2);
+    final crystals = shape == SnowflakeShape.crystal;
+    var count = 0;
+
+    for (final flake in flakes) {
       final radius = minSize + (maxSize - minSize) * flake.depth;
-      final center = Offset(flake.x * size.width, flake.y * size.height);
+      final cx = flake.x * size.width;
+      final cy = flake.y * size.height;
 
       final color =
           colors[math.min(
@@ -484,39 +595,54 @@ class _SnowPainter extends CustomPainter {
           )];
       var alpha = color.a * opacity * (0.4 + 0.6 * flake.depth);
       if (fade > 0) {
-        final edge = math.min(center.dy, size.height - center.dy) / fade;
+        final edge = math.min(cy, size.height - cy) / fade;
         if (edge <= 0) continue;
         // Smoothstep, so the fade eases at both ends of the band.
         if (edge < 1) alpha *= edge * edge * (3 - 2 * edge);
       }
-      final flakeColor = color.withValues(alpha: alpha);
 
       final isCrystal =
-          shape == SnowflakeShape.crystal &&
+          crystals &&
           radius >= _crystalMinRadius &&
           flake.variety < crystalFraction;
-      if (!isCrystal) {
-        final large = radius >= _crystalMinRadius;
-        canvas.drawCircle(
-          center,
-          radius * 0.6,
-          (large ? largeDotPaint : smallDotPaint)..color = flakeColor,
-        );
-        continue;
+
+      // Each flake is a rotated, scaled copy of its sprite cell, anchored at
+      // the cell's centre.
+      final double scos;
+      final double ssin;
+      if (isCrystal) {
+        final scale = radius * crystalScale;
+        scos = math.cos(flake.rotation) * scale;
+        ssin = math.sin(flake.rotation) * scale;
+      } else {
+        scos = radius * dotScale;
+        ssin = 0;
       }
-      canvas
-        ..save()
-        ..translate(center.dx, center.dy)
-        ..rotate(flake.rotation)
-        ..scale(radius);
-      // The canvas is scaled, so divide to keep a constant on-screen width.
-      crystalPaint
-        ..color = flakeColor
-        ..strokeWidth = (0.9 + radius * 0.06) / radius;
-      canvas
-        ..drawPath(crystalPath, crystalPaint)
-        ..restore();
+      final i = count * 4;
+      transforms[i] = scos;
+      transforms[i + 1] = ssin;
+      transforms[i + 2] = cx - scos * half + ssin * half;
+      transforms[i + 3] = cy - ssin * half - scos * half;
+      rects[i] = isCrystal ? cell : 0.0;
+      rects[i + 1] = 0;
+      rects[i + 2] = isCrystal ? cell * 2 : cell;
+      rects[i + 3] = cell;
+      tints[count] =
+          (color.toARGB32() & 0x00FFFFFF) |
+          ((alpha * 255).round().clamp(0, 255) << 24);
+      count++;
     }
+    if (count == 0) return;
+
+    canvas.drawRawAtlas(
+      image,
+      Float32List.sublistView(transforms, 0, count * 4),
+      Float32List.sublistView(rects, 0, count * 4),
+      Int32List.sublistView(tints, 0, count),
+      BlendMode.modulate,
+      null,
+      Paint()..filterQuality = FilterQuality.low,
+    );
   }
 
   @override
@@ -529,5 +655,6 @@ class _SnowPainter extends CustomPainter {
       oldDelegate.fadeExtent != fadeExtent ||
       oldDelegate.minSize != minSize ||
       oldDelegate.maxSize != maxSize ||
-      oldDelegate.opacity != opacity;
+      oldDelegate.opacity != opacity ||
+      oldDelegate.devicePixelRatio != devicePixelRatio;
 }

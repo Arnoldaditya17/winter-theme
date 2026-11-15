@@ -1,3 +1,12 @@
+## 1.0.1
+
+* Much faster rendering: every flake is drawn from a cached sprite sheet in a
+  single `drawRawAtlas` call, instead of one draw (and a blur filter) per
+  flake. Smoother on low-end devices, with no per-frame allocations.
+* Sprites are rendered at the screen's pixel density so crystals stay crisp.
+* The example app shows the `Snowfall(...)` code for the current settings,
+  with a copy button.
+
 ## 1.0.0
 
 * Initial release.
