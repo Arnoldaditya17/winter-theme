@@ -1,0 +1,34 @@
+name: winter_theme
+description: A fully customizable snowfall effect for Flutter. Wrap any widget to make it snow there, with ice crystals, wind gusts, custom colors and shapes.
+version: 1.0.0
+homepage: https://github.com/Arnoldaditya17/winter-theme
+repository: https://github.com/Arnoldaditya17/winter-theme
+issue_tracker: https://github.com/Arnoldaditya17/winter-theme/issues
+
+topics:
+  - snow
+  - snowfall
+  - animation
+  - winter
+  - effects
+
+screenshots:
+  - description: Snowfall with ice crystals and wind gusts over a whole screen.
+    path: screenshots/snowfall.gif
+  - description: Full-screen snow with the example app's live controls.
+    path: screenshots/snowfall.png
+  - description: A custom festive color palette with larger crystals.
+    path: screenshots/festive.png
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+  flutter: ">=3.32.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
