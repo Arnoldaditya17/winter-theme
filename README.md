@@ -126,8 +126,13 @@ Snowfall(
 
 ## Example
 
-The app in [`example/`](example) is a test screen with live controls for
-these options. The tune button in its app bar hides the controls.
+The app in [`example/`](example) is a playground with live controls for
+these options. As you change them it shows the matching `Snowfall(...)` code
+with a copy button, so you can tune the snow by eye and paste the result into
+your app. The tune button in its app bar hides the controls.
+
+The controls exist only in the example. The package itself draws nothing but
+snow, so your users never see them.
 
 ## License
 

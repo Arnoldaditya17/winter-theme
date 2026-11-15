@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:winter_theme/winter_theme.dart';
 
@@ -59,6 +60,33 @@ class _SnowTestScreenState extends State<SnowTestScreen> {
   double _speed = 70;
   double _wind = 0;
   double _gusts = 45;
+
+  /// The `Snowfall(...)` code for the current selections, listing only the
+  /// options that differ from the package defaults.
+  String get _generatedCode {
+    final lines = <String>[
+      if (_behind) 'layer: SnowfallLayer.background,',
+      if (_palette != 'Snow')
+        'colors: const [${_palettes[_palette]!.map(_colorCode).join(', ')}],',
+      if (_flakes.round() != 120) 'numberOfSnowflakes: ${_flakes.round()},',
+      if (_crystals != 0.35)
+        'crystalFraction: ${_crystals.toStringAsFixed(2)},',
+      if (_size.round() != 10) 'maxSize: ${_size.round()},',
+      'minSpeed: ${(_speed * 0.4).round()},',
+      'maxSpeed: ${_speed.round()},',
+      if (_wind.round() != 0) 'wind: ${_wind.round()},',
+      if (_gusts.round() != 45) 'gustiness: ${_gusts.round()},',
+      if (_area != _Area.full) ...[
+        'heightFactor: 0.5,',
+        'alignment: Alignment.${_area == _Area.top ? 'topCenter' : 'bottomCenter'},',
+      ],
+      'child: child,',
+    ];
+    return 'Snowfall(\n${lines.map((line) => '  $line').join('\n')}\n)';
+  }
+
+  static String _colorCode(Color color) =>
+      'Color(0x${color.toARGB32().toRadixString(16).toUpperCase().padLeft(8, '0')})';
 
   @override
   Widget build(BuildContext context) {
@@ -210,6 +238,10 @@ class _SnowTestScreenState extends State<SnowTestScreen> {
                       ],
                     ),
                   ),
+                if (_showControls) ...[
+                  const SizedBox(height: 16),
+                  _CodeCard(code: _generatedCode),
+                ],
                 const SizedBox(height: 16),
                 Text(
                   'Snow in one card only',
@@ -292,6 +324,51 @@ class _HeroCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shows the generated `Snowfall(...)` code with a copy button.
+class _CodeCard extends StatelessWidget {
+  const _CodeCard({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 8, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(child: Text('Code for these settings')),
+                IconButton(
+                  tooltip: 'Copy code',
+                  icon: const Icon(Icons.copy),
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: code));
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Code copied')),
+                    );
+                  },
+                ),
+              ],
+            ),
+            SelectableText(
+              code,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ],
         ),
       ),
     );
