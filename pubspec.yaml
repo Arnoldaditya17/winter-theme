@@ -1,6 +1,6 @@
 name: winter_theme
-description: A fully customizable snowfall effect for Flutter. Wrap any widget to make it snow there, with ice crystals, wind gusts, custom colors and shapes.
-version: 1.0.1
+description: Snow effects for Flutter. Snowfall makes it snow over any widget, and SnowCap lets snow build up on its top edge, drape over rounded corners and break off the sides.
+version: 1.1.0
 homepage: https://github.com/Arnoldaditya17/winter-theme
 repository: https://github.com/Arnoldaditya17/winter-theme
 issue_tracker: https://github.com/Arnoldaditya17/winter-theme/issues
@@ -19,6 +19,14 @@ screenshots:
     path: screenshots/snowfall.png
   - description: A custom festive color palette with larger crystals.
     path: screenshots/festive.png
+  - description: SnowCap building up on a card, then breaking off at the corners.
+    path: screenshots/snowcap.gif
+  - description: SnowCap patches forming, before they join into one heap.
+    path: screenshots/snowcap_patches.png
+  - description: A full SnowCap heap draped over a rounded card.
+    path: screenshots/snowcap_settled.png
+  - description: A piece of SnowCap tipping over the corner and falling.
+    path: screenshots/snowcap_break.png
 
 environment:
   sdk: ">=3.8.0 <4.0.0"

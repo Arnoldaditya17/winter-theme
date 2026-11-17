@@ -1,3 +1,20 @@
+## 1.1.0
+
+* New `SnowCap` widget: snow that settles on the top edge of any widget. It
+  starts bare, forms patches that join into one heap, drapes over rounded
+  corners, and breaks off at the corners. Pieces tip over, fall and crumble,
+  and the broken spots refill.
+* Options for build-up (`thickness`, `settleTime`, `startSettled`,
+  `accumulating`), shedding (`shedding`, `chunkSize`, `shedRate`,
+  `fallSpeed`, `fallDistance`) and looks (`color`, `shadeColor`, `overlap`,
+  `borderRadius`, `seed`).
+* Extra customization: `texture` (any `ImageProvider`, including cached
+  network images), `backgroundPainter` and `foregroundPainter` for custom
+  painters, and `overlay` for any widget, such as a Lottie animation.
+* One ticker that pauses with `TickerMode`, stops when nothing can move,
+  respects reduced motion, and keeps the heap across rebuilds and resizes.
+* The example app has a SnowCap demo screen (snowflake button in the app bar).
+
 ## 1.0.1
 
 * Much faster rendering: every flake is drawn from a cached sprite sheet in a

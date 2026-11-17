@@ -10,6 +10,15 @@ card, an app bar, or the entire app. Taps pass straight through the snow.
   <img src="https://raw.githubusercontent.com/Arnoldaditya17/winter-theme/main/screenshots/festive.png" width="260" alt="Festive color palette">
 </p>
 
+<p>
+  <img src="https://raw.githubusercontent.com/Arnoldaditya17/winter-theme/main/screenshots/snowcap.gif" width="260" alt="SnowCap building up on a card and breaking off at the corners">
+  <img src="https://raw.githubusercontent.com/Arnoldaditya17/winter-theme/main/screenshots/snowcap_settled.png" width="260" alt="A full SnowCap heap on a rounded card">
+  <img src="https://raw.githubusercontent.com/Arnoldaditya17/winter-theme/main/screenshots/snowcap_break.png" width="260" alt="A piece of snow breaking off a corner">
+</p>
+
+The package has two widgets: `Snowfall` (snow falling over a widget) and
+`SnowCap` (snow settling on a widget's top edge).
+
 ## Features
 
 - Six-armed ice crystals that spin as they fall, mixed with soft round flakes
@@ -19,13 +28,14 @@ card, an app bar, or the entire app. Taps pass straight through the snow.
 - Snow in front of or behind your content
 - Snow over any region: padding, alignment, and width and height factors
 - Built for low-end devices: one ticker, no per-frame rebuilds, and every flake drawn from a cached sprite in a single draw call
+- `SnowCap`: snow that builds up on a widget's top edge, drapes over rounded corners and breaks off at the corners
 - No dependencies beyond Flutter
 
 ## Install
 
 ```yaml
 dependencies:
-  winter_theme: ^1.0.1
+  winter_theme: ^1.1.0
 ```
 
 ## Usage
@@ -99,7 +109,113 @@ Snowfall(
 )
 ```
 
-## Options
+## SnowCap
+
+`SnowCap` draws snow that settles on the top edge of its child, the way real
+snow does. The edge starts bare. Random patches form and join into one heap
+over `settleTime`. Once the corners fill up, pieces break off, tip over and
+fall down the sides, and the broken spots fill in again.
+
+```dart
+SnowCap(
+  borderRadius: BorderRadius.circular(16),
+  child: Card(child: MyContent()),
+)
+```
+
+It never takes pointer events, and the child lays out exactly as it would
+without `SnowCap`. Set `seed` to make the heap, the flakes and the breaks
+repeat exactly (useful in golden tests).
+
+### Clipping
+
+The snow is drawn above and beside the child, so **a clipping ancestor cuts
+it off**: a `ClipRRect`, a `Card` with a clip, or the edge of a scrolling
+viewport. Wrap the outermost widget that shares the top edge, and leave room
+above it.
+
+### Screens that rebuild often
+
+A new `SnowCap` starts bare. If a screen is rebuilt or re-created often, or in
+golden tests, set `startSettled: true` so the heap is full on the first frame.
+Changing parameters on a live `SnowCap` keeps its heap, and a width change
+(rotation, resize) resamples it instead of resetting.
+
+### Snowfall + SnowCap
+
+Snow falls over a header, then settles on the card below it:
+
+```dart
+Column(
+  children: [
+    SizedBox(
+      height: 150,
+      child: Snowfall(child: Center(child: Text('Snow falls, then settles'))),
+    ),
+    SnowCap(
+      borderRadius: BorderRadius.circular(24),
+      child: Card(child: MyContent()),
+    ),
+  ],
+)
+```
+
+### Customization
+
+```dart
+SnowCap(
+  // Fill the snow with an image. Any ImageProvider works; NetworkImage is
+  // cached by Flutter's image cache.
+  texture: const NetworkImage('https://example.com/snow.png'),
+  // Draw your own decoration under or over the snow. The origin is the
+  // child's top-left corner, so you can draw above the edge.
+  backgroundPainter: MyIciclePainter(),
+  foregroundPainter: MySparklePainter(),
+  // Any widget over the child, for example a Lottie animation.
+  overlay: Align(
+    alignment: Alignment.topCenter,
+    child: FractionalTranslation(
+      translation: const Offset(0, -0.8),
+      child: Lottie.asset('assets/sparkle.json', width: 80),
+    ),
+  ),
+  child: card,
+)
+```
+
+`winter_theme` depends only on Flutter. To use Lottie, add the `lottie`
+package to your own app.
+
+### SnowCap options
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `true` | Off renders only the child and schedules no frames. |
+| `thickness` | `12` | Height of the full heap above the edge. |
+| `overlap` | `2` | How far the snow lips over the front edge. |
+| `borderRadius` | zero | Corner radii of the child; only the top corners are used. |
+| `settleTime` | 30 s | Time for a bare edge to build up into one heap. |
+| `startSettled` | `false` | Start as a full heap and skip the build-up. |
+| `accumulating` | `true` | `false`: no new flakes land, the heap stays as it is. |
+| `shedding` | `true` | `false`: the corners never break off. |
+| `chunkSize` | `24` | Typical length of a broken piece. |
+| `shedRate` | `1.0` | Multiplier on how often breaks happen. |
+| `fallSpeed` | `1.0` | Multiplier on tipping and falling speed. |
+| `fallDistance` | `null` | How far pieces fall; null is the child's full height. |
+| `color` | white | Colour of the top surface. |
+| `shadeColor` | `0xFFD5E2EE` | Tone of the base and underside. |
+| `seed` | `null` | Fixes the heap, flakes and breaks for tests and screenshots. |
+| `texture` | `null` | Image that fills the snow instead of the gradient. |
+| `backgroundPainter` | `null` | Custom painter between the child and the snow. |
+| `foregroundPainter` | `null` | Custom painter over the snow. |
+| `overlay` | `null` | Widget over the child and the snow. |
+
+The animation uses one ticker. It runs only while `enabled` and `accumulating`
+or `shedding` is on (or pieces are still falling), pauses with `TickerMode`
+(offscreen, inactive tabs, route transitions), and is replaced by a still,
+fully settled heap when the system asks for reduced motion.
+
+## Snowfall options
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
@@ -127,9 +243,13 @@ Snowfall(
 ## Example
 
 The app in [`example/`](example) is a playground with live controls for
-these options. As you change them it shows the matching `Snowfall(...)` code
+the `Snowfall` options. As you change them it shows the matching `Snowfall(...)` code
 with a copy button, so you can tune the snow by eye and paste the result into
 your app. The tune button in its app bar hides the controls.
+
+The snowflake button in its app bar opens a `SnowCap` demo: snow falls over a
+header and settles on a card, with toggles for `startSettled`, `accumulating`
+and `shedding`.
 
 The controls exist only in the example. The package itself draws nothing but
 snow, so your users never see them.

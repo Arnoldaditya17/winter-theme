@@ -2,6 +2,8 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:winter_theme/winter_theme.dart';
 
+import 'snow_cap_demo.dart';
+
 void main() => runApp(const WinterThemeExampleApp());
 
 class WinterThemeExampleApp extends StatelessWidget {
@@ -115,6 +117,15 @@ class _SnowTestScreenState extends State<SnowTestScreen> {
             title: const Text('Snowfall test'),
             backgroundColor: Colors.transparent,
             actions: [
+              IconButton(
+                tooltip: 'SnowCap demo',
+                icon: const Icon(Icons.ac_unit),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SnowCapDemoScreen(),
+                  ),
+                ),
+              ),
               IconButton(
                 tooltip: _showControls ? 'Hide controls' : 'Show controls',
                 icon: Icon(_showControls ? Icons.tune : Icons.tune_outlined),
